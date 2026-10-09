@@ -1,7 +1,7 @@
-# Environment variables
+# Environment variables and secrets
 .env
 
-# Python
+# Python cache
 __pycache__/
 *.py[cod]
 
@@ -15,13 +15,13 @@ env/
 .coverage
 htmlcov/
 
-# IDE
+# IDE settings
 .vscode/
 .idea/
 
 # Logs
 *.log
 
-# OS files
+# Operating system files
 .DS_Store
 Thumbs.db
