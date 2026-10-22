@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -207,6 +208,8 @@ def test_login_and_role_access(client: TestClient) -> None:
     assert client.get("/auth/me", headers={"Authorization": ""}).status_code == 401
     assert client.get("/auth/users", headers={"Authorization": ""}).status_code == 401
     assert client.get("/auth/users").status_code == 200
+    assert client.get("/health").status_code == 200
+    assert client.get("/health/ready").status_code == 200
     response = client.post(
         "/auth/login",
         json={
@@ -334,6 +337,17 @@ def test_login_and_role_access(client: TestClient) -> None:
     agent_token = agent_login.json()["access_token"]
     agent_headers = {"Authorization": f"Bearer {agent_token}"}
     assert client.get("/customers/", headers=agent_headers).status_code == 200
+    created_customer = client.post(
+        "/customers/",
+        json={
+            "name": "Agent Added Customer",
+            "email": "agent-added-customer@example.com",
+            "phone": "1234567890",
+            "address": "2 Agent Street",
+        },
+        headers=agent_headers,
+    )
+    assert created_customer.status_code == 201, created_customer.text
     assert client.patch(
         f"/customers/{customer_id}",
         json={"status": "inactive"},
@@ -493,6 +507,66 @@ def test_customer_cannot_create_vehicle_records(
         "vehicle_type": "CAR",
     }
     assert client.post("/vehicles/", json=vehicle_data, headers=headers).status_code == 403
+
+
+def test_public_customer_registration_creates_linked_account(
+    client: TestClient,
+) -> None:
+    payload = {
+        "name": "New Customer",
+        "email": "new.customer@example.com",
+        "password": "CustomerPassword123!",
+        "phone": "1234567890",
+        "address": "1 New Street",
+        "role": "ADMIN",
+    }
+    response = client.post(
+        "/auth/register",
+        json=payload,
+        headers={"Authorization": ""},
+    )
+
+    assert response.status_code == 201, response.text
+    account = response.json()
+    assert account["user"]["role"] == "CUSTOMER"
+    assert account["user"]["customer_id"] is not None
+
+    login = client.post(
+        "/auth/login",
+        json={
+            "email": payload["email"],
+            "password": payload["password"],
+            "role": "CUSTOMER",
+        },
+    )
+    assert login.status_code == 200, login.text
+    assert login.json()["user"]["customer_id"] == account["user"]["customer_id"]
+    assert client.post(
+        "/auth/register",
+        json=payload,
+        headers={"Authorization": ""},
+    ).status_code == 409
+
+    registration_operation = client.get("/openapi.json").json()["paths"][
+        "/auth/register"
+    ]["post"]
+    assert registration_operation["responses"]["201"]
+    assert "security" not in registration_operation
+
+
+def test_vercel_requires_a_persistent_database(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VERCEL", "1")
+    monkeypatch.setattr(
+        main,
+        "engine",
+        SimpleNamespace(dialect=SimpleNamespace(name="sqlite")),
+    )
+
+    with pytest.raises(RuntimeError, match="persistent database"):
+        with TestClient(main.app):
+            pass
 
 
 def test_accident_and_claim_endpoints(client: TestClient) -> None:

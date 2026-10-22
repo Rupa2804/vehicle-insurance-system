@@ -9,6 +9,7 @@ from app.models.customer import Customer
 from app.models.user import User
 from app.models.surveyor import Surveyor
 from app.schemas.auth import (
+    CustomerRegistration,
     LoginRequest,
     LoginResponse,
     UserCreate,
@@ -16,6 +17,60 @@ from app.schemas.auth import (
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+@router.post(
+    "/register",
+    response_model=LoginResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register a customer account",
+    description=(
+        "Public self-registration is limited to the CUSTOMER role. "
+        "Employee and privileged accounts must be provisioned by an administrator."
+    ),
+)
+def register_customer(
+    data: CustomerRegistration,
+    db: Session = Depends(get_db),
+) -> LoginResponse:
+    email = str(data.email).lower()
+    if db.query(User.id).filter(User.email == email).first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists",
+        )
+    if db.query(Customer.id).filter(Customer.email == email).first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A customer with this email already exists",
+        )
+
+    customer = Customer(
+        name=data.name,
+        email=email,
+        phone=data.phone,
+        address=data.address,
+    )
+    user = User(
+        email=email,
+        password_hash=hash_password(data.password),
+        role="CUSTOMER",
+        customer=customer,
+    )
+    db.add(user)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account or customer with this email already exists",
+        ) from exc
+    db.refresh(user)
+    return LoginResponse(
+        access_token=create_access_token(user.id, user.role),
+        user=UserResponse.model_validate(user),
+    )
 
 
 @router.post("/login", response_model=LoginResponse)

@@ -7,20 +7,24 @@ schema at `/openapi.json`.
 
 | Method and path | Access | Success |
 | --- | --- | ---: |
+| `POST /auth/register` | Public; CUSTOMER role only | 201 |
 | `POST /auth/login` | Public | 200 |
 | `GET /auth/me` | Any authenticated user | 200 |
 | `GET /auth/users` | ADMIN | 200 |
 | `POST /auth/users` | ADMIN | 201 |
 
 Use the returned `access_token` as `Authorization: Bearer <token>` on protected
-resource requests. Create the first administrator with
-`python -m app.auth.create_admin`; account provisioning is administrator-only.
-There is no public registration route. Login requires the account's assigned
-role; the server rejects a role mismatch and uses the provisioned database
-account as the source of permissions. `CUSTOMER` accounts must link to a
-customer record and `SURVEYOR` accounts to a surveyor record. These roles can
-only access records within their ownership or survey assignment scope. Browser
-clients must use an origin listed in the comma-separated `CORS_ORIGINS` setting.
+resource requests. Public registration creates a CUSTOMER account and its
+linked customer profile atomically, and returns a token so the customer is
+signed in immediately. Employee and privileged roles are still provisioned
+only by an administrator. Login requires the account's assigned role; the
+server rejects a role mismatch and uses the database account as the source of
+permissions. Customers can use `POST /auth/register` in Swagger UI or the
+customer signup form. `POST /customers/` remains available to authenticated
+AGENT and ADMIN users for direct profile creation. `SURVEYOR` accounts must
+link to a surveyor record; CUSTOMER and SURVEYOR requests are limited to their
+ownership or assignment scope. Browser clients must use an origin listed in
+the comma-separated `CORS_ORIGINS` setting.
 
 | Role | Resource permissions |
 | --- | --- |
@@ -43,6 +47,9 @@ as a selector when creating a surveyor account.
 | --- | --- | ---: |
 | Health | `GET /` | 200 |
 | Health | `GET /health` | 200 |
+| Readiness | `GET /health/ready` | 200 when the database is reachable |
+| Authentication | `POST /auth/register` | 201 |
+| Authentication | `POST /auth/login` | 200 |
 | Customers | `POST /customers/` | 201 |
 | Customers | `GET /customers/` | 200 |
 | Customers | `GET /customers/{customer_id}` | 200 |

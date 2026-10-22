@@ -24,6 +24,12 @@ router = APIRouter(
     "/",
     response_model=CustomerResponse,
     status_code=status.HTTP_201_CREATED,
+    summary="Create a customer record",
+    description=(
+        "Create a customer profile as an authenticated AGENT or ADMIN. "
+        "For public customer onboarding, use POST /auth/register; it creates "
+        "the customer profile and linked login account together."
+    ),
 )
 def create_customer(
     customer_data: CustomerCreate,

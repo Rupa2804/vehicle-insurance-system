@@ -199,7 +199,7 @@ tbody tr:hover { background: #fbfcfe; }
 .loading-mark { width: 30px; height: 30px; border: 3px solid #dfe8f5; border-top-color: #4c79cb; border-radius: 50%; animation: spin .8s linear infinite; }
 .mobile-menu-button, .mobile-scrim { display: none; }
 
-.login-page { position: relative; display: grid; min-height: 100vh; place-items: center; padding: 28px; overflow: hidden; background: #f1f5fa; }
+.login-page { position: relative; display: grid; min-height: 100vh; place-items: center; padding: 28px; overflow: auto; background: #f1f5fa; }
 .login-page::before { position: absolute; inset: 0 0 auto; height: 43%; background: linear-gradient(125deg, #122b46, #1c3c60 62%, #315a89); content: ""; }
 .login-page::after { position: absolute; top: 0; right: 0; left: 0; height: 44%; background-image: radial-gradient(#ffffff16 1px, transparent 1px); background-size: 21px 21px; mask-image: linear-gradient(to bottom, #000, transparent); content: ""; }
 .login-decoration { position: absolute; z-index: 1; border: 1px solid #ffffff18; border-radius: 50%; }
@@ -221,6 +221,9 @@ tbody tr:hover { background: #fbfcfe; }
 .login-submit { width: 100%; min-height: 41px; margin-top: 12px; font-size: 11px; }
 .login-submit svg { margin-left: auto; }
 .login-footnote { display: flex; align-items: center; justify-content: center; gap: 8px; padding-top: 20px; color: #8b98a8; font-size: 9px; }
+.login-account-help { margin: 14px 0 0; color: #8390a0; text-align: center; font-size: 10px; }
+.auth-mode-toggle { padding: 0; border: 0; color: #3268cf; background: transparent; font-size: inherit; font-weight: 680; }
+.auth-mode-toggle:hover { text-decoration: underline; }
 .login-bottom { position: absolute; z-index: 2; bottom: 23px; color: #7b8ba0; font-size: 9px; letter-spacing: .3px; }
 
 @keyframes spin { to { transform: rotate(360deg); } }

@@ -1,11 +1,13 @@
+from contextlib import asynccontextmanager
 import os
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-from app.config.settings import settings
 from app.api.accidents import router as accident_router
 from app.api.auth import router as auth_router
 from app.api.claims import router as claim_router
@@ -18,7 +20,8 @@ from app.api.reports import router as report_router
 from app.api.settlements import router as settlement_router
 from app.api.surveyors import router as surveyor_router
 from app.api.vehicle_routes import router as vehicle_router
-from app.database.database import create_db_and_tables
+from app.config.settings import settings
+from app.database.database import create_db_and_tables, engine, get_db
 from app.utils.exceptions import (
     ConflictError,
     InvalidStateTransitionError,
@@ -28,10 +31,31 @@ from app.utils.exceptions import (
 
 api_prefix = "/api" if os.getenv("VERCEL") == "1" else ""
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    if os.getenv("VERCEL") == "1" and engine.dialect.name == "sqlite":
+        raise RuntimeError(
+            "Vercel deployments require a persistent database; set DATABASE_URL "
+            "to a managed PostgreSQL database."
+        )
+    if os.getenv("VERCEL") == "1" and (
+        len(settings.JWT_SECRET_KEY) < 32
+        or "replace_with" in settings.JWT_SECRET_KEY.lower()
+    ):
+        raise RuntimeError(
+            "Vercel deployments require a private JWT_SECRET_KEY of at least "
+            "32 characters."
+        )
+    create_db_and_tables()
+    yield
+
+
 app = FastAPI(
     title="Vehicle Insurance Claim Management System",
     description="Backend API for managing vehicle insurance and claims",
     version="1.0.0",
+    lifespan=lifespan,
 )
 app.add_middleware(
     CORSMiddleware,
@@ -86,22 +110,24 @@ async def integrity_error_handler(
     )
 
 
-@app.on_event("startup")
-def startup_event():
-    create_db_and_tables()
-
-
-if os.getenv("VERCEL") != "1":
-    @app.get("/")
-    def home():
-        return {
-            "message": "Vehicle Insurance Claim Management System API is running"
-        }
+@app.get("/", include_in_schema=False)
+def home(request: Request):
+    if "text/html" in request.headers.get("accept", ""):
+        return RedirectResponse(url="/login")
+    return {
+        "message": "Vehicle Insurance Claim Management System API is running"
+    }
 
 
 @app.get(f"{api_prefix}/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get(f"{api_prefix}/health/ready")
+def readiness_check(db: Session = Depends(get_db)):
+    db.execute(text("SELECT 1"))
+    return {"status": "ready"}
 
 
 app.include_router(accident_router, prefix=api_prefix)

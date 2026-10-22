@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm --prefix ../frontend ci && npm --prefix ../frontend run build && node -e \"require('node:fs').cpSync('../frontend/dist', 'frontend/dist', { recursive: true })\""
+}

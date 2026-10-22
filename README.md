@@ -41,41 +41,34 @@ Make sure you have the following installed:
 
 ## Project Structure
 
+The repository root contains exactly these three project items:
+
 ```text
 vehicle-insurance-system/
-├── app/
-│   ├── api/
-│   ├── models/
-│   ├── schemas/
-│   ├── services/
-│   ├── repositories/
-│   ├── database/
-│   ├── auth/
-│   └── config/
-├── tests/
-├── docs/
+├── backend/
+│   ├── app/
+│   ├── tests/
+│   ├── docs/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── vercel.json
 ├── frontend/
 │   ├── src/
 │   ├── package.json
-│   ├── index.html
-│   └── vite.config.ts
-├── .env.example
-├── .gitignore
-├── requirements.txt
-├── Dockerfile
+│   └── package-lock.json
 └── README.md
 ```
 
 ## Run the API
 
-In PowerShell, create and activate a virtual environment, install the backend
-requirements, then copy the environment template if a local `.env` does not
-already exist:
+In PowerShell, create and activate a virtual environment in `backend/`, install
+the backend requirements, and create a local environment file:
 
 ```powershell
+Set-Location .\backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
@@ -96,17 +89,24 @@ python -m app.auth.create_admin
 The API creates missing tables at startup. The default CORS allowlist includes
 the local Vite origins (`localhost:5173` and `127.0.0.1:5173`); production
 deployments should replace these with their trusted frontend origins.
+The initial administrator can be provisioned against the same database with
+`python -m app.auth.create_admin` from the `backend/` directory.
 
 ## Role-based access and web application
 
-The API uses bearer-token authentication. Except for the health checks and
-`POST /auth/login`, resource routes require a valid access token. An initial
-administrator must be created privately with `python -m app.auth.create_admin`;
-administrators provision all other accounts through `POST /auth/users`. There
-is no public user-registration endpoint. Login requires selecting the
-account's assigned role; the API rejects a role that does not match the
-provisioned account and derives permissions from the database account, not the
-selected value.
+The API uses bearer-token authentication. Health checks, `POST /auth/login`,
+and `POST /auth/register` are public. Customers can create their own account
+from the login page or Swagger UI; registration creates a linked customer
+profile and account in one transaction, then signs the customer in. The login
+page requires selecting the account's assigned role, which the API verifies
+against the database. A selected role never grants additional permissions.
+
+Employee and privileged accounts remain administrator-provisioned through
+`POST /auth/users`. This keeps user provisioning and the sensitive ADMIN,
+CLAIMS_OFFICER, SURVEYOR, FINANCE, and MANAGER roles under administrative
+control. AGENT accounts can be created by an administrator and can create
+customer profiles directly through `POST /customers/` in Swagger or the web
+application.
 
 | Role | Access |
 | --- | --- |
@@ -120,34 +120,56 @@ selected value.
 
 Each role lands on a dashboard with metrics and quick links tailored to its workflow. Frontend routes and controls follow the backend's explicit per-role allowlist; the API remains authoritative and rejects unauthorized requests even when called directly.
 
-Customers and surveyors must be linked to their existing customer/surveyor
-record when their account is provisioned. To add a surveyor, an administrator
-creates the surveyor profile in **Surveyors**, then creates the login account
-in **User access** and selects that profile. The web application is a React,
+Customer self-registration creates the customer profile and account together.
+To add a surveyor, an administrator creates the surveyor profile in
+**Surveyors**, then creates the login account in **User access** and selects
+that profile. The web application is a React,
 TypeScript, and Vite client, with all frontend source and build configuration
 grouped under `frontend/`:
 
 ```powershell
 Set-Location .\frontend
-Copy-Item .env.example .env.local
-npm install
+npm ci
 npm run dev
 ```
 
 Set `VITE_API_BASE_URL` in `frontend/.env.local` when the API is hosted at a
 different address; the default is `http://localhost:8000`. See
-[`docs/api-documentation.md`](docs/api-documentation.md) for endpoint status
+[`backend/docs/api-documentation.md`](backend/docs/api-documentation.md) for endpoint status
 codes, authentication, and error responses.
 
 ## Deploy to Vercel
 
-Keep the Vercel project root set to the repository root. The root
-[`vercel.json`](vercel.json) builds the frontend during deployment, and
-FastAPI serves the built single-page application at `/`. On Vercel, API routes
-are available under `/api`, and the frontend uses that same deployment
-origin. No `VITE_API_BASE_URL` setting is needed unless the API is hosted
-separately.
+Set the Vercel project root directory to `backend/`. The
+[`backend/vercel.json`](backend/vercel.json) build command installs and builds
+the frontend, then copies its static output into the backend bundle. The FastAPI
+app serves the single-page application at `/`; API routes use the `/api`
+prefix, so the frontend uses the same deployment origin.
 
 Configure the backend's required environment variables in the Vercel project
-settings, including a strong `JWT_SECRET_KEY` and a production database URL.
-Provision the initial administrator privately after deployment.
+settings: set a strong private `JWT_SECRET_KEY`, a persistent managed
+PostgreSQL `DATABASE_URL`, and `CORS_ORIGINS` to the deployed frontend origin.
+Vercel's filesystem is not persistent; the application fails startup rather
+than silently falling back to SQLite when deployed there. Vercel builds the
+frontend from `frontend/package-lock.json` and detects the FastAPI entrypoint
+at `backend/app/main.py`. Provision the initial administrator privately after
+deployment with `python -m app.auth.create_admin` using the same `DATABASE_URL`
+from a secure environment.
+
+## Build and run with Docker
+
+From the repository root, build the image using the root as the build context
+and the Dockerfile under `backend/`:
+
+```powershell
+docker build -f backend/Dockerfile -t vehicle-insurance-system .
+docker run --rm -p 8000:8000 `
+  -e DATABASE_URL="postgresql+psycopg://user:password@host:5432/vehicle_insurance_db" `
+  -e JWT_SECRET_KEY="replace-with-a-private-secret-of-at-least-32-characters" `
+  -e CORS_ORIGINS="http://localhost:5173" `
+  vehicle-insurance-system
+```
+
+The image builds the frontend, runs FastAPI as a non-root user, and includes a
+database-backed health check at `/health/ready`. Supply a managed persistent
+database and private secrets in production, and put the service behind HTTPS.

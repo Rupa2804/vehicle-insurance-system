@@ -12,8 +12,17 @@ export interface User {
   email: string;
   role: Role;
   customer_id: number | null;
+  surveyor_id: number | null;
   is_active: boolean;
   created_at: string;
+}
+
+export interface CustomerRegistration {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
+  address: string;
 }
 
 export interface LoginResponse {
