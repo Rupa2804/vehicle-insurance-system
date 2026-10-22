@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.auth.permissions import authorize_request
 from app.database.database import get_db
 from app.schemas.settlement import SettlementCreate, SettlementResponse
 from app.services.settlement_service import SettlementService
@@ -9,7 +10,8 @@ from app.utils.exceptions import NotFoundError, ValidationError
 
 router = APIRouter(
     prefix="/settlements",
-    tags=["Settlements"]
+    tags=["Settlements"],
+    dependencies=[Depends(authorize_request)],
 )
 
 

@@ -1,5 +1,8 @@
 # Environment variables and secrets
 .env
+vehicle_insurance.db
+node_modules/
+dist/
 
 # Python cache
 __pycache__/
@@ -25,3 +28,5 @@ htmlcov/
 # Operating system files
 .DS_Store
 Thumbs.db
+.vercel
+.env*

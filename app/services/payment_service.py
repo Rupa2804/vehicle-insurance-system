@@ -1,16 +1,25 @@
 from datetime import datetime, timezone
 
 from app.repositories.payment_repository import PaymentRepository
-from app.utils.exceptions import NotFoundError, ValidationError, ConflictError
+from app.repositories.settlement_repository import SettlementRepository
+from app.utils.exceptions import (
+    ConflictError,
+    NotFoundError,
+    ValidationError,
+)
 
 
 class PaymentService:
     def __init__(self, db):
         self.repo = PaymentRepository(db)
+        self.settlement_repo = SettlementRepository(db)
 
     def create(self, data):
         if data.amount <= 0:
             raise ValidationError("Payment amount must be greater than zero")
+
+        if not self.settlement_repo.get_by_id(data.settlement_id):
+            raise NotFoundError("Settlement not found")
 
         existing_payment = self.repo.get_by_transaction_reference(
             data.transaction_reference
@@ -38,18 +47,20 @@ class PaymentService:
         return payment
 
     def get_by_settlement_id(self, settlement_id: int):
+        if not self.settlement_repo.get_by_id(settlement_id):
+            raise NotFoundError("Settlement not found")
         return self.repo.get_by_settlement_id(settlement_id)
 
     def process_payment(self, payment_id: int):
         payment = self.get_by_id(payment_id)
 
         if payment.status == "SUCCESS":
-            raise ValidationError(
+            raise ConflictError(
                 "Payment has already been completed"
             )
 
         if payment.status == "REFUNDED":
-            raise ValidationError(
+            raise ConflictError(
                 "Refunded payment cannot be processed"
             )
 
@@ -76,7 +87,7 @@ class PaymentService:
         payment = self.get_by_id(payment_id)
 
         if payment.status == "SUCCESS":
-            raise ValidationError(
+            raise ConflictError(
                 "Successful payment cannot be marked as failed"
             )
 
@@ -94,7 +105,7 @@ class PaymentService:
         payment = self.get_by_id(payment_id)
 
         if payment.status != "SUCCESS":
-            raise ValidationError(
+            raise ConflictError(
                 "Only successful payments can be refunded"
             )
 

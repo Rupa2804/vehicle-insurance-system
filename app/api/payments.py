@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.auth.permissions import authorize_request
 from app.database.database import get_db
 from app.schemas.payment import PaymentCreate, PaymentResponse
 from app.services.payment_service import PaymentService
@@ -9,7 +10,8 @@ from app.utils.exceptions import NotFoundError, ValidationError, ConflictError
 
 router = APIRouter(
     prefix="/payments",
-    tags=["Payments"]
+    tags=["Payments"],
+    dependencies=[Depends(authorize_request)],
 )
 
 
