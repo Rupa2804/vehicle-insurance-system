@@ -12,8 +12,9 @@ class RepairEstimate(Base):
 
     id: Mapped[int] = mapped_column(
         Integer,
-        nullable= False,
-        index= True
+        primary_key=True,
+        index=True,
+        nullable=False,
     )
 
     claim_id: Mapped[int] = mapped_column(

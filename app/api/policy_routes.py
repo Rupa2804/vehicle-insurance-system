@@ -2,7 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.auth.permissions import authorize_request
 from app.database.database import get_db
+from app.models.policy import Policy
+from app.models.user import User
 from app.schemas.policy import (
     PolicyCreate,
     PolicyUpdate,
@@ -13,6 +16,7 @@ from app.services.policy_service import PolicyService
 router = APIRouter(
     prefix="/policies",
     tags=["Policies"],
+    dependencies=[Depends(authorize_request)],
 )
 
 
@@ -51,7 +55,17 @@ def create_policy(
 @router.get("/", response_model=list[PolicyResponse])
 def get_all_policies(
     db: Session = Depends(get_db),
+    user: User = Depends(authorize_request),
 ):
+    if user.role == "CUSTOMER":
+        return (
+            db.query(Policy)
+            .filter(Policy.customer_id == user.customer_id)
+            .order_by(Policy.id)
+            .all()
+        )
+    if user.role == "FINANCE":
+        return db.query(Policy).order_by(Policy.id).all()
     return PolicyService.get_all_policies(db)
 
 

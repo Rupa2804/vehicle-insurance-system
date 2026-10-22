@@ -1,5 +1,8 @@
 # Environment variables and secrets
 .env
+vehicle_insurance.db
+node_modules/
+dist/
 
 # Python cache
 __pycache__/

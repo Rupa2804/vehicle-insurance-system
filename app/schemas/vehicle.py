@@ -3,7 +3,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class VehicleCreate(BaseModel):
-    customer_id: int = Field(gt=0)
+    customer_id: int | None = Field(default=None, gt=0)
     registration_number: str = Field(min_length=1, max_length=20)
     vin: str = Field(min_length=1, max_length=50)
     make: str = Field(min_length=1, max_length=50)

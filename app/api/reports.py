@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.auth.permissions import authorize_request
 from app.database.database import get_db
 from app.services.report_service import ReportService
 
 
 router = APIRouter(
     prefix="/reports",
-    tags=["Reports"]
+    tags=["Reports"],
+    dependencies=[Depends(authorize_request)],
 )
 
 
