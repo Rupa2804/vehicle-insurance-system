@@ -4,9 +4,12 @@ import type { RecordData, Role } from "../types";
 export interface Field {
   name: string;
   label: string;
-  type?: "text" | "number" | "date" | "email" | "password" | "select";
+  type?: "text" | "number" | "date" | "email" | "password" | "tel" | "select";
   required?: boolean;
   minLength?: number;
+  maxLength?: number;
+  placeholder?: string;
+  autoComplete?: string;
   options?: string[];
   secret?: boolean;
 }
@@ -34,10 +37,40 @@ export const resources: Record<string, ResourceDefinition> = {
     endpoint: "/customers/",
     createRoles: ["AGENT"],
     createFields: [
-      { name: "name", label: "Full name", required: true },
-      { name: "email", label: "Email", type: "email", required: true },
-      { name: "phone", label: "Phone", required: true },
-      { name: "address", label: "Address", required: true },
+      {
+        name: "name",
+        label: "Full name",
+        required: true,
+        minLength: 2,
+        placeholder: "e.g. Jordan Lee",
+        autoComplete: "name",
+      },
+      {
+        name: "email",
+        label: "Email",
+        type: "email",
+        required: true,
+        placeholder: "name@example.com",
+        autoComplete: "email",
+      },
+      {
+        name: "phone",
+        label: "Phone",
+        type: "tel",
+        required: true,
+        minLength: 10,
+        placeholder: "10–20 characters",
+        autoComplete: "tel",
+        maxLength: 20,
+      },
+      {
+        name: "address",
+        label: "Address",
+        required: true,
+        minLength: 3,
+        placeholder: "Street, city, postal code",
+        autoComplete: "street-address",
+      },
     ],
     updateRoles: ["CUSTOMER", "AGENT"],
     updateFields: [

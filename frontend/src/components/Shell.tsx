@@ -143,8 +143,8 @@ export function Shell() {
         <div className="brand">
           <div className="brand-mark"><ShieldCheck size={21} strokeWidth={2.1} /></div>
           <div>
-            <div className="brand-name">Northstar</div>
-            <div className="brand-caption">INSURANCE OPERATIONS</div>
+            <div className="brand-name">claimcare-portal</div>
+            <div className="brand-caption">CLAIMS MANAGEMENT</div>
           </div>
         </div>
         <div className="workspace-label">WORKSPACE</div>
@@ -190,7 +190,7 @@ export function Shell() {
         </header>
         <main className="page-content"><Outlet /></main>
         <footer className="footer">
-          <span>Northstar Insurance Operations</span>
+          <span>claimcare-portal · Insurance operations</span>
           <span>Role-aware access · Data from your claims system</span>
         </footer>
       </div>

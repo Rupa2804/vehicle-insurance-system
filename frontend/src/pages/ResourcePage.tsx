@@ -463,14 +463,21 @@ export function ResourcePage({ resourceKey }: { resourceKey: string }) {
                       type={field.type ?? "text"}
                       required={required}
                       minLength={field.minLength}
+                      maxLength={field.maxLength}
                       step={field.type === "number" ? "any" : undefined}
                       defaultValue={editing ? String(editing[field.name] ?? "") : ""}
-                      placeholder={field.type === "number" ? "0.00" : ""}
+                      placeholder={field.placeholder ?? (field.type === "number" ? "0.00" : "")}
+                      autoComplete={field.autoComplete}
                     />
                   )}
                 </label>
                 );
               })}
+              {resourceKey === "customers" && !editing && (
+                <p className="form-guidance">
+                  Add a customer profile here. Customers who need to sign in can create their own portal account from the login page.
+                </p>
+              )}
               {resourceKey === "users" &&
                 selectedUserRole === "SURVEYOR" &&
                 surveyorsQuery.isError && (
@@ -493,7 +500,7 @@ export function ResourcePage({ resourceKey }: { resourceKey: string }) {
                 <button className="button button-secondary" type="button" onClick={clearModal}>Cancel</button>
                 <button className="button button-primary" type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
                   {(createMutation.isPending || updateMutation.isPending) && <LoaderCircle size={16} className="spin" />}
-                  {editing ? "Save changes" : "Create record"}
+                  {editing ? "Save changes" : resourceKey === "customers" ? "Create customer" : "Create record"}
                 </button>
               </div>
             </form>

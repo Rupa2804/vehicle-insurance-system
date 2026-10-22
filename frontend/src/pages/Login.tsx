@@ -55,7 +55,7 @@ function LoginBrand() {
   return (
     <div className="login-brand">
       <div className="brand-mark"><ShieldCheck size={22} /></div>
-      <span>Northstar</span>
+      <span>claimcare-portal</span>
     </div>
   );
 }

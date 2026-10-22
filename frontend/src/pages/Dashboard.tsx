@@ -32,14 +32,14 @@ import { loadResource } from "../components/resources";
 import type { RecordData, Role } from "../types";
 
 const chartColors: Record<string, string> = {
-  SUBMITTED: "#7192c7",
-  PENDING: "#e9aa51",
-  UNDER_REVIEW: "#678fe1",
-  IN_PROGRESS: "#678fe1",
-  APPROVED: "#34a987",
-  REJECTED: "#df7376",
-  CLOSED: "#788ca2",
-  SETTLED: "#34a987",
+  SUBMITTED: "#a99bc8",
+  PENDING: "#ad855d",
+  UNDER_REVIEW: "#81759e",
+  IN_PROGRESS: "#81759e",
+  APPROVED: "#668a78",
+  REJECTED: "#b46d72",
+  CLOSED: "#94918e",
+  SETTLED: "#668a78",
 };
 
 interface DashboardMetric {
