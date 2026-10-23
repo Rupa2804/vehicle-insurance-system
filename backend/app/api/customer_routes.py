@@ -27,6 +27,7 @@ router = APIRouter(
     summary="Create a customer record",
     description=(
         "Create a customer profile as an authenticated AGENT or ADMIN. "
+        "Provide initial_password to also provision a linked customer login. "
         "For public customer onboarding, use POST /auth/register; it creates "
         "the customer profile and linked login account together."
     ),
@@ -87,6 +88,14 @@ def update_customer(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only administrators may change customer account status",
+            )
+        if (
+            user.role not in {"AGENT", "ADMIN"}
+            and "initial_password" in customer_data.model_fields_set
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only agents or administrators may provision customer logins",
             )
         return CustomerService.update_customer(
             db,

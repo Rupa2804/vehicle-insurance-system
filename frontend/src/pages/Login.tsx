@@ -27,8 +27,11 @@ const loginSchema = z.object({
 const registrationSchema = z.object({
   name: z.string().min(2, "Enter your full name.").max(100),
   email: z.email("Enter a valid email address."),
-  password: z.string().min(12, "Use at least 12 characters.").max(128),
-  phone: z.string().min(10, "Enter a phone number with at least 10 characters.").max(20),
+  password: z.string()
+    .min(12, "Use at least 12 characters.")
+    .max(128, "Password must be 128 characters or fewer.")
+    .regex(/^(?=.*[A-Za-z])(?=.*[0-9]).+$/, "Include at least one letter and one number."),
+  phone: z.string().regex(/^[0-9]{10}$/, "Enter exactly 10 digits."),
   address: z.string().min(3, "Enter your address."),
 });
 
@@ -153,10 +156,26 @@ function RegisterForm({ onSwitch }: { onSwitch: () => void }) {
         <input id="register-email" autoComplete="email" placeholder="you@example.com" type="email" {...register("email")} />
         {errors.email && <span className="field-error">{errors.email.message}</span>}
         <label htmlFor="register-password">Password</label>
-        <input id="register-password" autoComplete="new-password" type="password" {...register("password")} />
+        <input
+          id="register-password"
+          autoComplete="new-password"
+          type="password"
+          minLength={12}
+          maxLength={128}
+          pattern="^(?=.*[A-Za-z])(?=.*[0-9]).+$"
+          {...register("password")}
+        />
         {errors.password && <span className="field-error">{errors.password.message}</span>}
         <label htmlFor="phone">Phone</label>
-        <input id="phone" autoComplete="tel" type="tel" {...register("phone")} />
+        <input
+          id="phone"
+          autoComplete="tel"
+          type="tel"
+          inputMode="numeric"
+          maxLength={10}
+          pattern="[0-9]{10}"
+          {...register("phone")}
+        />
         {errors.phone && <span className="field-error">{errors.phone.message}</span>}
         <label htmlFor="address">Address</label>
         <input id="address" autoComplete="street-address" {...register("address")} />

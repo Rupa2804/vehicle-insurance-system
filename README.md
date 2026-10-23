@@ -106,7 +106,13 @@ Employee and privileged accounts remain administrator-provisioned through
 CLAIMS_OFFICER, SURVEYOR, FINANCE, and MANAGER roles under administrative
 control. AGENT accounts can be created by an administrator and can create
 customer profiles directly through `POST /customers/` in Swagger or the web
-application.
+application. When adding a customer, the agent sets an initial password of at
+least 12 characters containing both letters and numbers; the customer can
+then sign in with that email, the CUSTOMER role, and the password shared with
+them securely. Mobile numbers must contain exactly 10 digits. Agents can also
+provision an initial password for an older customer profile with no login by
+editing that profile. Existing customer accounts cannot be reset through this
+profile action.
 
 | Role | Access |
 | --- | --- |

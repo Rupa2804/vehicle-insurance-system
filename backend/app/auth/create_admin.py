@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from app.auth.security import hash_password
 from app.database.database import SessionLocal, create_db_and_tables
 from app.models.user import User
+from app.schemas.common import Password
 
 
 def main() -> None:
@@ -16,9 +17,16 @@ def main() -> None:
         ).lower()
     except ValidationError as exc:
         raise SystemExit("Enter a valid administrator email address.") from exc
-    password = getpass("Administrator password (at least 12 characters): ")
-    if len(password) < 12:
-        raise SystemExit("Password must contain at least 12 characters.")
+    password = getpass(
+        "Administrator password (12+ characters, letters and numbers): "
+    )
+    try:
+        TypeAdapter(Password).validate_python(password)
+    except ValidationError as exc:
+        raise SystemExit(
+            "Password must be 12–128 characters and contain at least one "
+            "letter and one number."
+        ) from exc
 
     db = SessionLocal()
     try:

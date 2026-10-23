@@ -21,10 +21,18 @@ only by an administrator. Login requires the account's assigned role; the
 server rejects a role mismatch and uses the database account as the source of
 permissions. Customers can use `POST /auth/register` in Swagger UI or the
 customer signup form. `POST /customers/` remains available to authenticated
-AGENT and ADMIN users for direct profile creation. `SURVEYOR` accounts must
-link to a surveyor record; CUSTOMER and SURVEYOR requests are limited to their
-ownership or assignment scope. Browser clients must use an origin listed in
-the comma-separated `CORS_ORIGINS` setting.
+AGENT and ADMIN users. Supplying an `initial_password` that meets the password
+policy creates a linked CUSTOMER login at the same email; without it, the
+endpoint creates only a profile. Agents should share the initial password
+securely. An AGENT may also set `initial_password` through
+`PATCH /customers/{customer_id}` to provision a login for an existing profile
+that has no linked account; an existing login cannot be overwritten this way.
+New passwords must be 12–128 characters and contain at least one letter and
+one digit. Customer and surveyor mobile numbers, when supplied, must be
+exactly 10 digits.
+`SURVEYOR` accounts must link to a surveyor record; CUSTOMER and SURVEYOR
+requests are limited to their ownership or assignment scope. Browser clients
+must use an origin listed in the comma-separated `CORS_ORIGINS` setting.
 
 | Role | Resource permissions |
 | --- | --- |

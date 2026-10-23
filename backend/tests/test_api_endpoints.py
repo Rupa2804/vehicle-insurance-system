@@ -6,11 +6,17 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
+from pydantic import ValidationError
 
 from app.auth.security import create_access_token, hash_password
 from app.database.base import Base
 from app.database.database import get_db
 from app.models.user import User
+from app.schemas.auth import CustomerRegistration, UserCreate
+from app.schemas.customer import CustomerCreate, CustomerUpdate
+from app.schemas.payment import PaymentCreate
+from app.schemas.repair_estimate import RepairEstimateCreate
+from app.schemas.settlement import SettlementCreate
 import app.main as main
 
 
@@ -116,6 +122,68 @@ def create_policy(
     )
     assert response.status_code == 201, response.text
     return response.json()["id"]
+
+
+def test_password_mobile_and_relationship_id_constraints() -> None:
+    registration_data = {
+        "name": "Policy Customer",
+        "email": "policy.customer@example.com",
+        "phone": "1234567890",
+        "address": "1 Test Street",
+    }
+    for password in ("123456789012", "abcdefghijkl", "short123"):
+        with pytest.raises(ValidationError):
+            CustomerRegistration(**registration_data, password=password)
+        with pytest.raises(ValidationError):
+            UserCreate(
+                email="provisioned@example.com",
+                password=password,
+                role="AGENT",
+            )
+
+    CustomerRegistration(**registration_data, password="customer12345")
+    UserCreate(
+        email="provisioned@example.com",
+        password="agentaccount123",
+        role="AGENT",
+    )
+
+    for phone in ("123456789", "12345678901", "12345abc90"):
+        with pytest.raises(ValidationError):
+            CustomerCreate(
+                name="Policy Customer",
+                email="phone.test@example.com",
+                phone=phone,
+                address="1 Test Street",
+            )
+        with pytest.raises(ValidationError):
+            CustomerUpdate(phone=phone)
+
+    for model, field_name, values in (
+        (
+            PaymentCreate,
+            "settlement_id",
+            {"amount": "1", "payment_method": "CARD", "transaction_reference": "TX-1"},
+        ),
+        (
+            RepairEstimateCreate,
+            "claim_id",
+            {"estimated_amount": "1"},
+        ),
+        (
+            SettlementCreate,
+            "claim_id",
+            {
+                "estimated_amount": "1",
+                "approved_amount": "1",
+                "deductible": "0",
+                "coverage_limit": "10",
+                "final_amount": "1",
+            },
+        ),
+    ):
+        with pytest.raises(ValidationError):
+            model(**values, **{field_name: -1})
 
 
 def create_accident(
@@ -552,6 +620,114 @@ def test_public_customer_registration_creates_linked_account(
     ]["post"]
     assert registration_operation["responses"]["201"]
     assert "security" not in registration_operation
+
+
+def test_agent_created_customer_can_sign_in(client: TestClient) -> None:
+    agent_email = "customer-creator@example.com"
+    agent_password = "AgentPassword123!"
+    agent = client.post(
+        "/auth/users",
+        json={
+            "email": agent_email,
+            "password": agent_password,
+            "role": "AGENT",
+        },
+    )
+    assert agent.status_code == 201, agent.text
+    headers = login_headers(client, agent_email, agent_password, "AGENT")
+
+    customer_email = "Agent.Created.Customer@example.com"
+    initial_password = "CustomerInitial123!"
+    created = client.post(
+        "/customers/",
+        json={
+            "name": "Agent Created Customer",
+            "email": customer_email,
+            "phone": "1234567890",
+            "address": "42 Agent Street",
+            "initial_password": initial_password,
+        },
+        headers=headers,
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["email"] == customer_email.lower()
+
+    login = client.post(
+        "/auth/login",
+        json={
+            "email": customer_email,
+            "password": initial_password,
+            "role": "CUSTOMER",
+        },
+    )
+    assert login.status_code == 200, login.text
+    assert login.json()["user"]["customer_id"] == created.json()["id"]
+
+    changed_email = "renamed.customer@example.com"
+    updated = client.patch(
+        f"/customers/{created.json()['id']}",
+        json={"email": changed_email},
+        headers=headers,
+    )
+    assert updated.status_code == 200, updated.text
+    assert client.post(
+        "/auth/login",
+        json={
+            "email": changed_email,
+            "password": initial_password,
+            "role": "CUSTOMER",
+        },
+    ).status_code == 200
+    assert client.post(
+        "/auth/login",
+        json={
+            "email": customer_email,
+            "password": initial_password,
+            "role": "CUSTOMER",
+        },
+    ).status_code == 401
+
+
+def test_agent_can_provision_login_for_existing_customer_profile(
+    client: TestClient,
+) -> None:
+    customer_id = create_customer(client, "existing-profile@example.com")
+    agent_email = "profile-provisioner@example.com"
+    agent_password = "AgentPassword123!"
+    assert client.post(
+        "/auth/users",
+        json={
+            "email": agent_email,
+            "password": agent_password,
+            "role": "AGENT",
+        },
+    ).status_code == 201
+    headers = login_headers(client, agent_email, agent_password, "AGENT")
+    initial_password = "ExistingCustomer123!"
+
+    provisioned = client.patch(
+        f"/customers/{customer_id}",
+        json={"initial_password": initial_password},
+        headers=headers,
+    )
+    assert provisioned.status_code == 200, provisioned.text
+    login = client.post(
+        "/auth/login",
+        json={
+            "email": "existing-profile@example.com",
+            "password": initial_password,
+            "role": "CUSTOMER",
+        },
+    )
+    assert login.status_code == 200, login.text
+    assert login.json()["user"]["customer_id"] == customer_id
+
+    conflict = client.patch(
+        f"/customers/{customer_id}",
+        json={"initial_password": "AnotherInitial123!"},
+        headers=headers,
+    )
+    assert conflict.status_code == 409
 
 
 def test_vercel_requires_a_persistent_database(

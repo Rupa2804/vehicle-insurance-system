@@ -3,6 +3,7 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
+from app.schemas.common import Password
 
 class UserRole(str, Enum):
     CUSTOMER = "CUSTOMER"
@@ -22,7 +23,7 @@ class LoginRequest(BaseModel):
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=12, max_length=128)
+    password: Password
     role: UserRole
     customer_id: int | None = Field(default=None, gt=0)
     surveyor_id: int | None = Field(default=None, gt=0)
@@ -47,8 +48,8 @@ class UserCreate(BaseModel):
 class CustomerRegistration(BaseModel):
     name: str = Field(min_length=2, max_length=100)
     email: EmailStr
-    password: str = Field(min_length=12, max_length=128)
-    phone: str = Field(min_length=10, max_length=20)
+    password: Password
+    phone: str = Field(pattern=r"^[0-9]{10}$")
     address: str = Field(min_length=3)
 
 

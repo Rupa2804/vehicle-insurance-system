@@ -42,7 +42,7 @@ function toPayload(form: HTMLFormElement, fields: Field[]): Record<string, unkno
     const raw = String(values.get(field.name) ?? "").trim();
     if (!raw) continue;
     payload[field.name] =
-      field.type === "number" || field.name === "surveyor_id" ? Number(raw) : raw;
+      field.type === "number" || field.name.endsWith("_id") ? Number(raw) : raw;
   }
   return payload;
 }
@@ -58,6 +58,10 @@ export function ResourcePage({ resourceKey }: { resourceKey: string }) {
   const [editing, setEditing] = useState<RecordData | null>(null);
   const [creating, setCreating] = useState(false);
   const [selectedUserRole, setSelectedUserRole] = useState("");
+  const [selectedAccidentCustomerId, setSelectedAccidentCustomerId] = useState("");
+  const [selectedAccidentVehicleId, setSelectedAccidentVehicleId] = useState("");
+  const [accidentCustomerSearch, setAccidentCustomerSearch] = useState("");
+  const [accidentVehicleSearch, setAccidentVehicleSearch] = useState("");
   const [notice, setNotice] = useState("");
   const [actionError, setActionError] = useState("");
 
@@ -70,15 +74,32 @@ export function ResourcePage({ resourceKey }: { resourceKey: string }) {
     queryFn: () => loadResource("surveyors"),
     enabled: resourceKey === "users" && selectedUserRole === "SURVEYOR",
   });
+  const accidentCustomersQuery = useQuery({
+    queryKey: ["accident-customers"],
+    queryFn: () => loadResource("customers"),
+    enabled: resourceKey === "accidents" && creating && user?.role === "AGENT",
+  });
+  const accidentVehiclesQuery = useQuery({
+    queryKey: ["accident-vehicles"],
+    queryFn: () => loadResource("vehicles"),
+    enabled:
+      resourceKey === "accidents" &&
+      creating &&
+      (user?.role === "AGENT" || user?.role === "CUSTOMER"),
+  });
 
   const createMutation = useMutation({
     mutationFn: async (payload: RecordData) => {
       const { data } = await api.post(definition.endpoint, payload);
       return data as RecordData;
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, payload) => {
       setCreating(false);
-      setNotice(`${definition.singular} created successfully.`);
+      setNotice(
+        resourceKey === "customers" && payload.initial_password
+          ? "Customer profile and login created. Share the initial password securely."
+          : `${definition.singular} created successfully.`,
+      );
       await queryClient.invalidateQueries({ queryKey: ["resource"] });
     },
     onError: (error) => setActionError(readableError(error)),
@@ -174,8 +195,13 @@ export function ResourcePage({ resourceKey }: { resourceKey: string }) {
       ? (definition.createFields ?? []).filter((field) => field.name !== "customer_id")
       : definition.createFields ?? [];
   const updateFields =
-    resourceKey === "customers" && user?.role !== "ADMIN"
-      ? (definition.updateFields ?? []).filter((field) => field.name !== "status")
+    resourceKey === "customers"
+      ? (definition.updateFields ?? []).filter(
+        (field) =>
+          (user?.role === "ADMIN" || field.name !== "status") &&
+          ((user?.role === "AGENT" || user?.role === "ADMIN") ||
+            field.name !== "initial_password"),
+      )
       : definition.updateFields ?? [];
   const modalFields = (editing ? updateFields : createFields).filter((field) => {
     if (resourceKey !== "users") return true;
@@ -183,6 +209,24 @@ export function ResourcePage({ resourceKey }: { resourceKey: string }) {
     if (field.name === "surveyor_id") return selectedUserRole === "SURVEYOR";
     return true;
   });
+  const selectedCustomerVehicles = (accidentVehiclesQuery.data ?? []).filter(
+    (vehicle) =>
+      user?.role === "CUSTOMER" ||
+      String(vehicle.customer_id) === selectedAccidentCustomerId,
+  );
+  const filteredAccidentCustomers = (accidentCustomersQuery.data ?? []).filter(
+    (customer) =>
+      String(customer.id) === selectedAccidentCustomerId ||
+      `${customer.name ?? ""} ${customer.email ?? ""}`
+        .toLowerCase()
+        .includes(accidentCustomerSearch.trim().toLowerCase()),
+  );
+  const filteredAccidentVehicles = selectedCustomerVehicles.filter((vehicle) =>
+    String(vehicle.id) === selectedAccidentVehicleId ||
+    `${vehicle.registration_number ?? ""} ${vehicle.make ?? ""} ${vehicle.model ?? ""}`
+      .toLowerCase()
+      .includes(accidentVehicleSearch.trim().toLowerCase()),
+  );
   const canCreate = user?.role === "ADMIN" || Boolean(user && definition.createRoles?.includes(user.role));
   const canUpdate = user?.role === "ADMIN" || Boolean(user && definition.updateRoles?.includes(user.role));
   const canDelete = user?.role === "ADMIN" || Boolean(user && definition.allowDeleteRoles?.includes(user.role));
@@ -243,6 +287,10 @@ export function ResourcePage({ resourceKey }: { resourceKey: string }) {
   function clearModal() {
     setCreating(false);
     setEditing(null);
+    setSelectedAccidentCustomerId("");
+    setSelectedAccidentVehicleId("");
+    setAccidentCustomerSearch("");
+    setAccidentVehicleSearch("");
     setActionError("");
   }
 
@@ -262,6 +310,10 @@ export function ResourcePage({ resourceKey }: { resourceKey: string }) {
             onClick={() => {
               setActionError("");
               setSelectedUserRole("");
+              setSelectedAccidentCustomerId("");
+              setSelectedAccidentVehicleId("");
+              setAccidentCustomerSearch("");
+              setAccidentVehicleSearch("");
               setCreating(true);
               setEditing(null);
             }}
@@ -432,6 +484,9 @@ export function ResourcePage({ resourceKey }: { resourceKey: string }) {
             </div>
             <form className="data-form" onSubmit={(event) => submitForm(event, modalFields)}>
               {modalFields.map((field) => {
+                const isAccidentCustomer = resourceKey === "accidents" && field.name === "customer_id";
+                const isAccidentVehicle = resourceKey === "accidents" && field.name === "vehicle_id";
+                const isIdInput = field.type === "number" && field.name.endsWith("_id");
                 const linkedRecordRequired =
                   resourceKey === "users" &&
                   ((selectedUserRole === "CUSTOMER" && field.name === "customer_id") ||
@@ -441,29 +496,112 @@ export function ResourcePage({ resourceKey }: { resourceKey: string }) {
                 <label className="form-field" key={field.name}>
                   <span>{field.label}{required && <em> *</em>}</span>
                   {field.type === "select" ? (
-                    <select
-                      name={field.name}
-                      required={required}
-                      defaultValue={editing ? String(editing[field.name] ?? "") : ""}
-                      onChange={field.name === "role" ? (event) => setSelectedUserRole(event.target.value) : undefined}
-                      disabled={field.name === "surveyor_id" && surveyorsQuery.isLoading}
-                    >
-                      <option value="" disabled>Select an option</option>
-                      {field.name === "surveyor_id"
-                        ? (surveyorsQuery.data ?? []).map((surveyor) => (
-                          <option key={String(surveyor.id)} value={String(surveyor.id)}>
-                            {String(surveyor.name)} (ID {String(surveyor.id)})
-                          </option>
-                        ))
-                        : field.options?.map((option) => <option key={option} value={option}>{titleCase(option)}</option>)}
-                    </select>
+                    <>
+                      {isAccidentCustomer && (
+                        <input
+                          aria-label="Search customers"
+                          placeholder="Search by name or email"
+                          value={accidentCustomerSearch}
+                          onChange={(event) => setAccidentCustomerSearch(event.target.value)}
+                        />
+                      )}
+                      {isAccidentVehicle && (
+                        <input
+                          aria-label="Search vehicles"
+                          placeholder="Search by registration, make, or model"
+                          value={accidentVehicleSearch}
+                          onChange={(event) => setAccidentVehicleSearch(event.target.value)}
+                        />
+                      )}
+                      <select
+                        name={field.name}
+                        aria-label={
+                          isAccidentCustomer
+                            ? "Customer selection"
+                            : isAccidentVehicle
+                              ? "Vehicle selection"
+                              : undefined
+                        }
+                        required={required}
+                        value={
+                          isAccidentCustomer
+                            ? selectedAccidentCustomerId
+                            : isAccidentVehicle
+                              ? selectedAccidentVehicleId
+                              : undefined
+                        }
+                        defaultValue={
+                          isAccidentCustomer || isAccidentVehicle
+                            ? undefined
+                            : editing
+                              ? String(editing[field.name] ?? "")
+                              : ""
+                        }
+                        key={isAccidentVehicle ? selectedAccidentCustomerId : field.name}
+                        onChange={
+                          isAccidentCustomer
+                            ? (event) => {
+                              setSelectedAccidentCustomerId(event.target.value);
+                              setSelectedAccidentVehicleId("");
+                              setAccidentVehicleSearch("");
+                            }
+                            : isAccidentVehicle
+                              ? (event) => setSelectedAccidentVehicleId(event.target.value)
+                            : field.name === "role"
+                              ? (event) => setSelectedUserRole(event.target.value)
+                              : undefined
+                        }
+                        disabled={
+                          (field.name === "surveyor_id" && surveyorsQuery.isLoading) ||
+                          (isAccidentCustomer && accidentCustomersQuery.isLoading) ||
+                          (isAccidentVehicle &&
+                            (accidentVehiclesQuery.isLoading ||
+                              (user?.role === "AGENT" && !selectedAccidentCustomerId)))
+                        }
+                      >
+                        <option value="" disabled>
+                          {isAccidentCustomer
+                            ? "Select a customer"
+                            : isAccidentVehicle
+                              ? user?.role === "AGENT" && !selectedAccidentCustomerId
+                                ? "Select a customer first"
+                                : "Select a vehicle"
+                              : "Select an option"}
+                        </option>
+                        {isAccidentCustomer
+                          ? filteredAccidentCustomers.map((customer) => (
+                            <option key={String(customer.id)} value={String(customer.id)}>
+                              {String(customer.name)} — {String(customer.email)}
+                            </option>
+                          ))
+                          : isAccidentVehicle
+                            ? filteredAccidentVehicles.map((vehicle) => (
+                              <option key={String(vehicle.id)} value={String(vehicle.id)}>
+                                {String(vehicle.registration_number)} — {String(vehicle.make)} {String(vehicle.model)}
+                              </option>
+                            ))
+                            : field.name === "surveyor_id"
+                          ? (surveyorsQuery.data ?? []).map((surveyor) => (
+                            <option key={String(surveyor.id)} value={String(surveyor.id)}>
+                              {String(surveyor.name)} (ID {String(surveyor.id)})
+                            </option>
+                          ))
+                          : field.options?.map((option) => <option key={option} value={option}>{titleCase(option)}</option>)}
+                      </select>
+                    </>
                   ) : (
                     <input
                       name={field.name}
-                      type={field.type ?? "text"}
+                      type={isIdInput ? "text" : field.type ?? "text"}
                       required={required}
                       minLength={field.minLength}
                       maxLength={field.maxLength}
+                      pattern={
+                        isIdInput ? "[1-9][0-9]*" : field.pattern
+                      }
+                      inputMode={
+                        isIdInput || field.type === "tel" ? "numeric" : undefined
+                      }
                       step={field.type === "number" ? "any" : undefined}
                       defaultValue={editing ? String(editing[field.name] ?? "") : ""}
                       placeholder={field.placeholder ?? (field.type === "number" ? "0.00" : "")}
@@ -475,9 +613,50 @@ export function ResourcePage({ resourceKey }: { resourceKey: string }) {
               })}
               {resourceKey === "customers" && !editing && (
                 <p className="form-guidance">
-                  Add a customer profile here. Customers who need to sign in can create their own portal account from the login page.
+                  This also creates the customer’s portal login. Share the initial password with them securely; they sign in using this email and the Customer role.
                 </p>
               )}
+              {resourceKey === "customers" &&
+                editing &&
+                (user?.role === "AGENT" || user?.role === "ADMIN") && (
+                <p className="form-guidance">
+                  Set an initial password only if this customer does not have a login yet. Existing login accounts cannot be overwritten here.
+                </p>
+              )}
+              {resourceKey === "accidents" && accidentCustomersQuery.isError && (
+                <div className="form-alert" role="alert">
+                  Could not load customers: {readableError(accidentCustomersQuery.error)}
+                </div>
+              )}
+              {resourceKey === "accidents" && accidentVehiclesQuery.isError && (
+                <div className="form-alert" role="alert">
+                  Could not load vehicles: {readableError(accidentVehiclesQuery.error)}
+                </div>
+              )}
+              {resourceKey === "accidents" &&
+                !accidentCustomersQuery.isLoading &&
+                !accidentCustomersQuery.isError &&
+                accidentCustomersQuery.data?.length === 0 && (
+                  <div className="form-alert">
+                    Add a customer profile before reporting an accident.
+                  </div>
+                )}
+              {resourceKey === "accidents" &&
+                !accidentVehiclesQuery.isLoading &&
+                !accidentVehiclesQuery.isError &&
+                selectedCustomerVehicles.length === 0 &&
+                (user?.role === "CUSTOMER" || selectedAccidentCustomerId !== "") && (
+                  <div className="form-alert">
+                    No vehicles are registered under this customer yet. Add a vehicle before reporting the accident.
+                  </div>
+                )}
+              {resourceKey === "accidents" &&
+                selectedCustomerVehicles.length > 0 &&
+                filteredAccidentVehicles.length === 0 && (
+                  <div className="form-alert">
+                    No vehicles match that search. Try a registration number, make, or model.
+                  </div>
+                )}
               {resourceKey === "users" &&
                 selectedUserRole === "SURVEYOR" &&
                 surveyorsQuery.isError && (

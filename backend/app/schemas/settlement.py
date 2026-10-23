@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class SettlementBase(BaseModel):
-    claim_id: int
+    claim_id: int = Field(gt=0)
     estimated_amount: Decimal = Field(gt=0)
     approved_amount: Decimal = Field(ge=0)
     deductible: Decimal = Field(ge=0)
