@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class RepairEstimateBase(BaseModel):
-    claim_id: int
+    claim_id: int = Field(gt=0)
     estimated_amount: Decimal = Field(gt=0)
     approved_amount: Decimal | None = Field(default=None, ge=0)
     remarks: str | None = None

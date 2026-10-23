@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class PaymentBase(BaseModel):
-    settlement_id: int
+    settlement_id: int = Field(gt=0)
     amount: Decimal = Field(gt=0)
     payment_method: str = Field(min_length=1, max_length=30)
     transaction_reference: str = Field(min_length=1, max_length=100)

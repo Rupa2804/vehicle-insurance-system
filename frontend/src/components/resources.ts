@@ -8,6 +8,7 @@ export interface Field {
   required?: boolean;
   minLength?: number;
   maxLength?: number;
+  pattern?: string;
   placeholder?: string;
   autoComplete?: string;
   options?: string[];
@@ -58,10 +59,10 @@ export const resources: Record<string, ResourceDefinition> = {
         label: "Phone",
         type: "tel",
         required: true,
-        minLength: 10,
-        placeholder: "10–20 characters",
+        placeholder: "10-digit mobile number",
         autoComplete: "tel",
-        maxLength: 20,
+        maxLength: 10,
+        pattern: "[0-9]{10}",
       },
       {
         name: "address",
@@ -71,13 +72,41 @@ export const resources: Record<string, ResourceDefinition> = {
         placeholder: "Street, city, postal code",
         autoComplete: "street-address",
       },
+      {
+        name: "initial_password",
+        label: "Initial password (12+ characters, letters and numbers)",
+        type: "password",
+        required: true,
+        minLength: 12,
+        maxLength: 128,
+        pattern: "^(?=.*[A-Za-z])(?=.*[0-9]).+$",
+        placeholder: "At least 12 characters, including letters and numbers",
+        autoComplete: "new-password",
+      },
     ],
     updateRoles: ["CUSTOMER", "AGENT"],
     updateFields: [
       { name: "name", label: "Full name" },
       { name: "email", label: "Email", type: "email" },
-      { name: "phone", label: "Phone" },
+      {
+        name: "phone",
+        label: "Phone",
+        type: "tel",
+        maxLength: 10,
+        pattern: "[0-9]{10}",
+        placeholder: "10-digit mobile number",
+      },
       { name: "address", label: "Address" },
+      {
+        name: "initial_password",
+        label: "Initial password (only if no login exists)",
+        type: "password",
+        minLength: 12,
+        maxLength: 128,
+        pattern: "^(?=.*[A-Za-z])(?=.*[0-9]).+$",
+        placeholder: "At least 12 characters, including letters and numbers",
+        autoComplete: "new-password",
+      },
       { name: "status", label: "Status" },
     ],
     updateEndpoint: (record) => `/customers/${record.id}`,
@@ -139,8 +168,8 @@ export const resources: Record<string, ResourceDefinition> = {
     endpoint: "/accidents/",
     createRoles: ["CUSTOMER", "AGENT"],
     createFields: [
-      { name: "vehicle_id", label: "Vehicle ID", type: "number", required: true },
-      { name: "customer_id", label: "Customer ID", type: "number", required: true },
+      { name: "customer_id", label: "Customer", type: "select", required: true },
+      { name: "vehicle_id", label: "Vehicle", type: "select", required: true },
       { name: "accident_date", label: "Accident date", type: "date", required: true },
       { name: "location", label: "Location", required: true },
       { name: "accident_type", label: "Accident type", required: true },
@@ -197,7 +226,14 @@ export const resources: Record<string, ResourceDefinition> = {
     createFields: [
       { name: "name", label: "Name", required: true },
       { name: "email", label: "Email", type: "email", required: true },
-      { name: "phone", label: "Phone" },
+      {
+        name: "phone",
+        label: "Phone",
+        type: "tel",
+        maxLength: 10,
+        pattern: "[0-9]{10}",
+        placeholder: "10-digit mobile number",
+      },
       { name: "region", label: "Region" },
       { name: "specialization", label: "Specialization" },
     ],
@@ -205,7 +241,14 @@ export const resources: Record<string, ResourceDefinition> = {
     updateFields: [
       { name: "name", label: "Name" },
       { name: "email", label: "Email", type: "email" },
-      { name: "phone", label: "Phone" },
+      {
+        name: "phone",
+        label: "Phone",
+        type: "tel",
+        maxLength: 10,
+        pattern: "[0-9]{10}",
+        placeholder: "10-digit mobile number",
+      },
       { name: "region", label: "Region" },
       { name: "specialization", label: "Specialization" },
     ],
@@ -313,7 +356,15 @@ export const resources: Record<string, ResourceDefinition> = {
     createRoles: ["ADMIN"],
     createFields: [
       { name: "email", label: "Email", type: "email", required: true },
-      { name: "password", label: "Temporary password (at least 12 characters)", type: "password", required: true, minLength: 12 },
+      {
+        name: "password",
+        label: "Temporary password (12+ characters, letters and numbers)",
+        type: "password",
+        required: true,
+        minLength: 12,
+        maxLength: 128,
+        pattern: "^(?=.*[A-Za-z])(?=.*[0-9]).+$",
+      },
       {
         name: "role",
         label: "Role",
