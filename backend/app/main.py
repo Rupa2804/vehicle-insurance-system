@@ -57,10 +57,12 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://vehicle-insurance-system-kzaf-k7axq1x6k-rupa2804.vercel.app",
+        "https://vehicle-insurance-system-kzaf-e2uizuakr-rupa2804.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
