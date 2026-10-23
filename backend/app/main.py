@@ -58,9 +58,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://vehicle-insurance-system-kzaf.vercel.app",
         "https://vehicle-insurance-system-kzaf-k7axq1x6k-rupa2804.vercel.app",
         "https://vehicle-insurance-system-kzaf-e2uizuakr-rupa2804.vercel.app",
     ],
@@ -68,6 +70,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.exception_handler(NotFoundError)
 async def not_found_error_handler(
