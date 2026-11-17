@@ -7,7 +7,7 @@ export const api = axios.create({
     import.meta.env.VITE_API_BASE_URL ??
     (import.meta.env.PROD ? "/api" : "http://127.0.0.1:8000"),
   headers: { "Content-Type": "application/json" },
-  timeout: 15_000,
+  timeout: 60_000,
 });
 
 api.interceptors.request.use((config) => {
